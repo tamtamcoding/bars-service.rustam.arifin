@@ -1,0 +1,112 @@
+package com.accenture.bars.file;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.accenture.bars.domain.Request;
+import com.accenture.bars.exception.BarsException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class TextInputFileImpl extends AbstractInputFile {
+
+	private static final Logger log = 
+			LoggerFactory.getLogger(TextInputFileImpl.class);
+
+	public TextInputFileImpl() {
+		//empty constructor
+	}
+
+	@Override
+	public List<Request> readFile() throws IOException {
+		final int NUMBER_TWO = 2;
+		final int NUMBER_TEN = 10;
+			
+		int rows = 1;
+
+		try {
+			BufferedReader br = 
+					new BufferedReader(new FileReader(getFile()));
+			
+			List<Request> requests = new ArrayList<>();
+			
+			DateTimeFormatter formatter = 
+					DateTimeFormatter.ofPattern("MMddyyyy");
+
+			String line = "";
+			while ((line = br.readLine()) != null) {
+				
+				log.info("=====>Processing Request ROW " + rows);
+				
+           	 String billCycle = line.substring(0, NUMBER_TWO);
+           	 String billStart = line.substring(NUMBER_TWO, NUMBER_TEN);
+           	 String billEnd = line.substring(NUMBER_TEN);
+
+				Request rec = new Request();
+				try {
+
+					int billingCycle = Integer.parseInt(billCycle);
+
+					if (billingCycle <MIN_BILLING_CYCLE ||
+							billingCycle > MAX_BILLING_CYCLE) {
+
+						log.error(BarsException.BILLING_CYCLE_NOT_ON_RANGE);
+						throw new BarsException(BarsException
+								.BILLING_CYCLE_NOT_ON_RANGE + " "+ rows + ".");
+					} else {
+
+						rec.setBillingCycle(billingCycle);
+					}
+				} catch (NumberFormatException e) {
+					log.error(BarsException.INVALID_BILLING_CYCLE);
+					throw new BarsException(BarsException
+							.INVALID_BILLING_CYCLE);
+				}
+
+				try {
+					LocalDate startDate = LocalDate.parse(billStart, formatter);
+					rec.setStartDate(startDate);
+
+				} catch (DateTimeParseException e) {
+					log.error(BarsException.INVALID_START_DATE_FORMAT);
+					throw new BarsException(BarsException
+							.INVALID_START_DATE_FORMAT + " "+ rows + ".");
+				}
+
+				try {
+					LocalDate endDate = LocalDate.parse(billEnd, formatter);
+					rec.setEndDate(endDate);
+				} catch (DateTimeParseException e) {
+					log.error(BarsException.INVALID_END_DATE_FORMAT);
+					throw new BarsException(BarsException
+							.INVALID_END_DATE_FORMAT + " "+ rows + ".");
+				}
+
+				rec = new Request(rec.getBillingCycle()
+						, rec.getStartDate()
+						, rec.getEndDate());
+				requests.add(rec);
+				rows++;
+			}
+			br.close();
+			
+			return requests;
+
+
+		}catch(IOException e){
+			log.info(BarsException.NO_RECORDS_TO_WRITE);
+			throw new BarsException(BarsException.NO_RECORDS_TO_WRITE);
+		}
+
+
+	}
+
+}
+
+		  

@@ -1,0 +1,114 @@
+package com.accenture.bars.file;
+
+import com.accenture.bars.domain.Request;
+import com.accenture.bars.exception.BarsException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
+
+public class CSVInputFileImpl extends AbstractInputFile {
+
+
+    private static final Logger log =
+    		LoggerFactory.getLogger(CSVInputFileImpl.class);;
+
+
+    public CSVInputFileImpl() {
+    	//empty constructor
+    }
+
+    @Override
+    public List<Request> readFile() {
+    	final int NUMBER_POS_ONE = 1;
+    	final int NUMBER_POS_TWO = 2;
+
+        try (BufferedReader br = 
+        		new BufferedReader(new FileReader(getFile()))){
+            List<Request> requests = new ArrayList<>();
+            
+            DateTimeFormatter formatter =
+            		DateTimeFormatter.ofPattern("MM/dd/yyyy");
+
+            int rows = 1;
+            String line = "";
+            while ((line = br.readLine()) != null) {
+            	
+                
+                log.info("=====>Processing Request ROW " + rows);
+                String[] data = line.split(",");
+                
+                 String billCycle = data[0];
+              	 String billStart = data[NUMBER_POS_ONE];
+              	 String billEnd = data[NUMBER_POS_TWO];
+              	 
+                Request rec = new Request();
+
+                try {
+
+                    int billingCycle = Integer.parseInt(billCycle);
+
+                    if (billingCycle < MIN_BILLING_CYCLE || 
+                    		billingCycle > MAX_BILLING_CYCLE) {
+
+                        throw new BarsException(BarsException
+                        		.BILLING_CYCLE_NOT_ON_RANGE  + " "+  rows + ".");
+                    } else {
+
+                        rec.setBillingCycle(billingCycle);
+                    }
+                } catch (NumberFormatException e) {
+                    log.error(BarsException.INVALID_BILLING_CYCLE);
+                    throw new BarsException(BarsException
+                    		.INVALID_BILLING_CYCLE  + " "+  rows + ".");
+                }
+
+                try {
+                    LocalDate startDate = 
+                    		LocalDate.parse(billStart, formatter);
+                    
+                    rec.setStartDate(startDate);
+
+
+                } catch (DateTimeParseException e) {
+                    log.error(BarsException.INVALID_START_DATE_FORMAT);
+                    throw new BarsException(BarsException
+                    		.INVALID_START_DATE_FORMAT  + " "+  rows + ".");
+                }
+                try {
+                    LocalDate endDate =
+                    		LocalDate.parse(billEnd, formatter);
+                    
+                    rec.setEndDate(endDate);
+                } catch (DateTimeParseException e) {
+                    log.error(BarsException.INVALID_END_DATE_FORMAT);
+                    throw new BarsException(BarsException
+                    		.INVALID_END_DATE_FORMAT + " "+  rows + ".");
+                }
+
+                rec = new Request(rec.getBillingCycle()
+                		, rec.getStartDate()
+                		, rec.getEndDate());
+                
+                requests.add(rec);
+                rows++;
+            }
+            br.close();
+            
+            return requests;
+
+        }catch(IOException e){
+        	log.info(BarsException.NO_RECORDS_TO_WRITE);
+        	
+			throw new BarsException(BarsException
+					.NO_RECORDS_TO_WRITE);
+        }
+
+    }
+}
